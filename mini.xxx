@@ -1,0 +1,14 @@
+GLOBALS qwe END
+five() {
+  5;
+}
+sum(a,b) {
+  a+b;
+}
+avg(a,b) {
+  sum(a,b) / 2;
+}
+BEGIN
+  print_int(avg(10,12)) ;
+  print_int(five());
+END

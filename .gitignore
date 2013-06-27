@@ -1,0 +1,8 @@
+*.cm[oxa] *.o
+./a.out
+test2
+log
+*.j
+*.class
+ostap.out
+yacc.out
