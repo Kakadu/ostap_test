@@ -1,0 +1,9 @@
+f() {
+  5;
+}
+sum(f,b) {
+  f+b;
+}
+BEGIN
+  print_int(sum(10,12)) ;
+END

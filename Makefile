@@ -1,24 +1,34 @@
-FILES1=Timer.cmx Helpers.cmx OstapLexer.cmx Lang.cmx  \
-	Printer.cmx Lang2.cmx JavaOstap.cmx JavaYacc.cmx PrinterYacc.cmx
+FILES1=Timer.cmx Helpers.cmx OstapLexer.cmx OstapLexerExpr.cmx Lang.cmx Printer.cmx OstapExprPrinter.cmx ExprOstap.cmx \
+	MarkdownLexer.cmx MarkdownPrinter.cmx Lang3.cmx  \
+	 Lang2.cmx JavaOstap.cmx JavaYacc.cmx PrinterYacc.cmx
 FILES_YACC=Lexer.cmx Parser.cmx
 
-OCAMLC=ocamlfind opt -rectypes
+OCAMLC=ocamlfind opt -rectypes -p -S
 OPTIONS=-thread -package typeutil,settings,checked,ostap -I `ocamlc -where`/camlp5
 OUT=a.out
 
 .SUFFIXES: .cmx .cmi .ml .mly .mll .mli
 
-all: $(FILES1) with_lex Driver.cmx Driver2.cmx
-		$(OCAMLC) $(OPTIONS) -linkpkg str.cmxa ostap.cmx $(FILES1) $(FILES_YACC) Driver.cmx -o $(OUT)
-		$(OCAMLC) $(OPTIONS) -linkpkg str.cmxa ostap.cmx $(FILES1) $(FILES_YACC) Driver2.cmx -o test2
+all: $(FILES1) with_lex Driver.cmx Driver2.cmx testMD.cmx TestExpr.cmx
+		$(OCAMLC) $(OPTIONS) -linkpkg   $(FILES1) $(FILES_YACC) Driver.cmx -o $(OUT)
+		$(OCAMLC) $(OPTIONS) -linkpkg   $(FILES1) $(FILES_YACC) Driver2.cmx -o test2
+		$(OCAMLC) $(OPTIONS) -linkpkg   $(FILES1) $(FILES_YACC) testMD.cmx -o testMD
+		$(OCAMLC) $(OPTIONS) -linkpkg   $(FILES1) $(FILES_YACC) \
+		ExprYacc.cmx LexerExpr.cmx TestExpr.cmx -o testExpr
 
 with_lex:
 		ocamlyacc Parser.mly
+		ocamlyacc ExprYacc.mly
 		$(OCAMLC) $(OPTIONS) -i Parser.ml > Parser.mli
+		$(OCAMLC) $(OPTIONS) -i ExprYacc.ml > ExprYacc.mli
 		$(OCAMLC) $(OPTIONS) -c Parser.mli
 		$(OCAMLC) $(OPTIONS) -c Parser.ml
+		$(OCAMLC) $(OPTIONS) -c ExprYacc.mli
+		$(OCAMLC) $(OPTIONS) -c ExprYacc.ml
 		ocamllex Lexer.mll
+		ocamllex LexerExpr.mll
 		$(OCAMLC) $(OPTIONS) -c Lexer.ml
+		$(OCAMLC) $(OPTIONS) -c LexerExpr.ml
 
 .ml.cmx:
 		$(OCAMLC) $(OPTIONS) -c -pp "camlp5o pa_checked.cmo pa_ostap.cmo pa_log.cmo" $<
@@ -27,11 +37,11 @@ with_lex:
 		$(OCAMLC) -c $<
 
 clean:
-		rm -fr *~ *.cm[oixa] $(OUT) _build Lexer.ml Parser.ml Parser.mli *.o HelloWorld.class
+		rm -fr *~ *.s *.cm[oixa] $(OUT) _build Lexer.ml Parser.ml Parser.mli *.o HelloWorld.class LexerExpr.ml ExprYacc.ml ExprYacc.mli
 
 j:
 		jasmin HelloWorld.j && java HelloWorld
 
 ob:
-		ocamlbuild -use-ocamlfind Driver.byte
+		ocamlbuild -use-ocamlfind Driver.native Driver2.native TestExpr.native
 

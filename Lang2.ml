@@ -12,13 +12,11 @@ let make_reason msg l = new Reason.t (Msg.make msg [||] (Matcher.Token.loc l))
 let repr = Matcher.Token.repr
 
 let ps = Printer.printer
-(*
-let memoize1 = fun p arg s ->
-  (if true then s#memoize1 p arg else p arg)
-  *)
 
+let program s =
+  let primary' = ref (fun _ -> assert false) in
   let rec expr' (resolver: resolver) s =
-    (*let ppp: resolver -> (_,_,_) parse = memoize1 primary resolver s in*)
+    printf "inside expr' resolver = %d, pos = %d\n" (Hashtbl.hash resolver) (s#pos);
     Util.expr
       Util.id
       [| `Lefta, [ ostap ("+"), ps#add
@@ -26,12 +24,11 @@ let memoize1 = fun p arg s ->
        ; `Lefta, [ ostap ("*"), ps#mul
                  ; ostap ("/"), ps#divide  ]
       |]
-      (primary' resolver)
+      (!primary' resolver)
       s
-  and primary' r s = (if true then s#memoize1 primary else primary) r s
   and ostap (          (* TODO: backtracking below *)
     primary[resolver]:
-      fname:IDENT => { is_function (repr fname) resolver }
+      fname:IDENT => { printf "guard for fun name %s\n%!" (repr fname); is_function (repr fname) resolver }
                   :: ( make_reason (sprintf "%s should be a function" (repr fname)) fname )
                   => "(" args: !(Util.list0)[expr' resolver] ")"
                   { ps#fun_call resolver (repr fname) args }
@@ -41,17 +38,18 @@ let memoize1 = fun p arg s ->
                => { ps#ident resolver (repr id) }
     | n:LITERAL   { ps#literal (Matcher.Token.repr n |! int_of_string)  }
     | -"("    expr'[resolver]    -")"
-  )
+    )
+  in
+  let () = primary' := (fun r -> (if true then s#memoize1 primary else primary) r) in
 
-let expr'' resolver s =
-    (if true then s#memoize1 expr' else expr') resolver s
-
-let expr resolver s =
-  let _ = expr'' resolver s in
-  expr'' resolver s
-
-ostap (
-  statement[resolver]:
+  let expr'' =
+    (if true then s#memoize1 expr' else expr')
+  in
+  let expr resolver s =
+    expr'' resolver s
+  in
+  let ostap (
+    statement[resolver]:
        l:IDENT   => { is_lvalue (repr l) resolver }
                  :: ( make_reason "global or local variable expected" l )
                  =>
@@ -59,8 +57,8 @@ ostap (
      | "print_int" "(" e:expr[resolver] ")" ";" { ps#print_int e }
      | e:expr[resolver]                     ";" { ps#return_statement e }
   )
-
-ostap (
+  in
+  let ostap (
   variable:     name:IDENT => { not (is_keyword name) } :: (make_reason  "identifier expected" name)
                            => { Matcher.Token.repr name };
 
@@ -77,6 +75,7 @@ ostap (
                  "{" stmts:(statement[r'])+ "}"
                  {
                     let ans = ps#func (fname, args, stmts) in
+                    printf "finish function %s\n%!" fname;
                     (ans, fun name -> if name=fname then Some Function else r name)
                  };
 
@@ -91,12 +90,13 @@ ostap (
   ;
   main_prog[rslv]: -"BEGIN" statement[rslv]* -"END"
   ;
-  program:   <(globals,rslv)> : global_vars
+  program':   <(globals,rslv)> : global_vars
              <(funcs,  rslv)> : functions[rslv]
              main:   main_prog[rslv]
                  {
                    ps#program globals funcs main
                  }
-)
-
+  )
+  in
+  program' s
 

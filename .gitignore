@@ -1,4 +1,11 @@
-*.cm[oxa] *.o
+*.cmx
+*.cmo
+*.cma
+*.cmi 
+*.[os]
+#executables
+testMD
+testExpr
 ./a.out
 test2
 log
@@ -6,3 +13,5 @@ log
 *.class
 ostap.out
 yacc.out
+gmon.out
+

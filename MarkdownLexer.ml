@@ -27,7 +27,7 @@ module HashKey  = struct
       ans
 end;;
 
-module MemoMap1 = Hashtbl.Make(HashKey)
+module MemoMap1 = Hashtbl.Make(HashKey);;
 
 let () =
   let k1 = (Obj.magic ((+)1),  Obj.magic ((^)""), 18) in
@@ -38,39 +38,20 @@ let () =
   ignore (MemoMap1.find h k1);
   ignore (MemoMap1.find h k2)
 ;;
-
 let profit_counter = ref 0
 
 class ['ans, 'arg] t s =
   let skip    = Skip.create [Skip.whitespaces " \n\t\r"; Skip.nestedComment "(*" "*)"] in
   let ident   = regexp identRegexp in
-  let literal = regexp "[0-9]+" in
 
-(*  let len = (String.length s) in
-
-  let memoize_count = ref 0 in
-  let ident_mem   = gen_memorizer memoize_count len in
-  let literal_mem = gen_memorizer memoize_count len in
-  *)
   object (self)
     inherit Matcher.t s
     val h = MemoMap1.create 100
     method skip p coord = skip s p coord
-(*
-    method wrap (has,get,add) f =
-      if has self#pos then get self#pos
-      else
-        let ans = f () in
-        let () = add self#pos ans in
-        ans
-    method getIDENT     = self#wrap ident_mem   (fun () -> self#get "identifier" ident)
-    method getLITERAL   = self#wrap literal_mem (fun () -> self#get "literal"  literal)
-    method memoize_profit = !memoize_count
-    *)
+
     method getIDENT     = self#get "identifier" ident
-    method getLITERAL   = self#get "literal"  literal
 
-
+(*
     method memoize1 (p: 'arg -> ('ans, 'arg) t -> 'ans) : 'arg -> ('ans,'arg) #t -> 'ans =
       (*let h = MemoMap1.create 100 in*)
       (fun arg (s: ('ans,'arg) #t) ->
@@ -89,6 +70,6 @@ class ['ans, 'arg] t s =
           printf "%d add\n" (HashKey.hash k);
           Obj.magic ans
       )
-
+*)
   end
 
