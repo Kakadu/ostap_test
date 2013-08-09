@@ -1,2 +1,3 @@
-true: package(ostap), rectypes, threads
+true: package(ostap), rectypes, threads, package(unix)
 <*.ml>: pp(camlp5o pa_checked.cmo pa_ostap.cmo pa_log.cmo)
+false: debug

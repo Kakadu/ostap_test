@@ -21,6 +21,9 @@ let () =
             ]
     (fun _ -> failwith "Anonymous arguments are not supported")
     "usage msg"
+
+let () = printf "Using input file '%s'\n%!" options.filename
+
 (*
 (** Warmup *)
 let () =

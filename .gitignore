@@ -15,3 +15,9 @@ ostap.out
 yacc.out
 gmon.out
 
+_build
+*.byte
+*.native
+
+perf.data*
+

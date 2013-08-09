@@ -8,7 +8,9 @@ open Helpers
 let make_reason msg l = new Reason.t (Msg.make msg [||] (Matcher.Token.loc l))
 let repr = Matcher.Token.repr
 
+
 let ps = OstapExprPrinter.printer
+
 let program s =
   let expr    = ref (fun _ -> assert false) in
   let primary = ref (fun _ -> assert false) in
@@ -34,7 +36,7 @@ let program s =
 (*
   let () = Ref.replace expr    (fun _ -> s#memoize0 expr_) in
   let () = Ref.replace primary (fun _ -> s#memoize0 primary_) in
-*)
+  *)
   let () = Ref.replace expr    (fun _ ->  expr_) in
   let () = Ref.replace primary (fun _ ->  primary_) in
 

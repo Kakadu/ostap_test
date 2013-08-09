@@ -1,5 +1,4 @@
-external (|>): 'a -> ('a -> 'b) -> 'b = "%revapply"
-let (|!) = (|>)
+external (|!): 'a -> ('a -> 'b) -> 'b = "%revapply"
 
 module Ref = struct
   let replace x ~f = x:= f !x
@@ -57,7 +56,7 @@ let eval_time msg f =
   let timer = Timer.make () in
   let ans = f () in
   let d = timer () in
-  Printf.printf "Action %s tooks %f processor time\n" msg d;
+  Printf.printf "Action '%s' tooks %f processor time\n" msg d;
   ans
 
 module Option = struct
