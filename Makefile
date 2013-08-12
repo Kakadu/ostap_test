@@ -43,5 +43,5 @@ j:
 		jasmin HelloWorld.j && java HelloWorld
 
 ob:
-		ocamlbuild -use-ocamlfind Driver.native Driver2.native TestExpr.native
+		ocamlbuild -use-ocamlfind TestExpr.native TestExpr.byte TestHack.native
 

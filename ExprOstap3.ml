@@ -13,39 +13,6 @@ let repr = Matcher.Token.repr
 
 let ps = OstapExprPrinter.printer
 
-(*
-let util_expr f ops opnd =
-  let left  f c x y = f (c x) y in
-  let right f c x y = f x y in
-
-  let ops =
-    Array.map
-      (fun (assoc, list) ->
-        let g = match assoc with `Lefta | `Nona -> left | `Righta -> right in
-        (assoc = `Nona), altl (List.map (fun (oper, sema) -> ostap (!(oper) {g sema})) list)
-      )
-      ops
-  in
-  let n      = Array.length ops in
-  let op   i = snd ops.(i)      in
-  let nona i = fst ops.(i)      in
-  let id x   = x                in
-  let ostap (
-    inner[l][c]: f[ostap (
-      {n = l                } => x:opnd {c x}
-    | {n > l && not (nona l)  && (printf "2nd variant, l=%d\n" l; true) }
-                              => x:inner[l+1][id] b:(-o:op[l] inner[l][o c x])? {
-        match b with None -> c x | Some x -> x
-      }
-    | {n > l && nona l && (printf "3rd variant\n"; true)}
-                              => x:inner[l+1][id] b:(-o:op[l] inner[l+1][o c x])? {
-        match b with None -> c x | Some x -> x
-      })]
-  )
-  in
-  ostap (inner[0][id])
-*)
-
 let program ~memoize meth s =
   let expr = ref (fun _ -> assert false) in
   let primary = ref (fun _ -> assert false) in
@@ -59,7 +26,7 @@ let program ~memoize meth s =
     ) in
     expr_
   in
-  let good_expr =
+  let good_expr = (* with left factorization *)
     let ostap (
        expr_:   l:factor         r:(-"+" expr_)?  { match r with Some r -> ps#add l r | None -> l } ;
       factor:   l: !( !primary ) r:(-"*" factor)? { match r with Some r -> ps#mul l r | None -> l }
@@ -73,24 +40,7 @@ let program ~memoize meth s =
   let rbra    = (fun __stream -> __stream#look ")") in
   let comma   = (fun __stream -> __stream#look ",") in
 
-  let primary_ = (*
-    (* 2-arg function call *)
-    ( ident              |> fun fname ->
-      lbra               |> fun _ ->
-      (!expr)            |> fun arg1 ->
-      comma              |> fun _ ->
-      (!expr)            |> fun arg2 ->
-      comma              |> fun _ ->
-      (!expr)            |> fun arg3 ->
-      comma              |> fun _ ->
-      (!expr)            |> fun arg4 ->
-      comma              |> fun _ ->
-      (!expr)            |> fun arg5 ->
-      rbra               --> fun _ -> (*
-        print_endline "5-arg function"; *)
-      ps#fun_call (repr fname) [arg1;arg2;arg3;arg4;arg5]
-    )
-    <|> *)
+  let primary_ =
     (* function call *)
     ( ident              |> fun fname ->
       lbra               |> fun _ ->
@@ -134,7 +84,7 @@ let program ~memoize meth s =
           Ref.replace primary (fun _ -> primary_)
   in
   let program =
-    let semi = (fun _ostap_stream -> _ostap_stream#look ";") in
-    (listBy semi  !expr) |> (fun ans -> semi                --> (fun _ -> ans) )
+    let semi __stream = __stream#look ";" in
+    (listBy semi  !expr) |> fun ans -> semi                --> fun _ -> ans
   in
   program s

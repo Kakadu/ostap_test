@@ -30,11 +30,12 @@ module MemoMap0 = Hashtbl.Make(HashKey0)
 let profit_counter = ref 0
 
 exception Finished
+exception Integer of int
 
 class ['ans] wrap_expr_lexer stream =
   let buf = Lexing.from_string stream in
   let data = Array.init (String.length stream) (fun _ -> None) in
-  let print i d = match d with Some (_,r,s) -> printf "%d:     '%s'      %d\n" i s r | None -> () in
+  let _print i d = match d with Some (_,r,s) -> printf "%d:     '%s'      %d\n" i s r | None -> () in
   let () =
     try
       while true do
@@ -58,11 +59,21 @@ class ['ans] wrap_expr_lexer stream =
     method private failed x c   = Ostap.Combinators.Failed (Ostap.Reason.reason (Msg.make x [||] (Msg.Locator.Point c)))
 
     method getIDENT =
+      (*
+      try for i = 1 to Array.length data - 1 do if data.(i) <> None then raise (Integer i) done;
+          self#failed "IDENT expected but stream is empty" (-1,-1)
+      with Integer n ->
+        match data.(n) with
+          | None -> assert false
+          | Some (ExprYacc.IDENT s,r,_) -> self#parsed s {< pos = r >} (-1,-1)
+          | ___ -> self#failed "IDENT expected" (-1,-1) *)
+
       match data.(pos) with
         | Some (ExprYacc.IDENT s,r,_) -> self#parsed s {< pos = r >} (-1,-1)
         | ___ -> self#failed "IDENT expected" (-1,-1)
 
     method getLITERAL =
+      (*print_endline "getLiteral";*)
       match data.(pos) with
         | Some (ExprYacc.LITERAL _,r,s) -> self#parsed s {< pos = r >} (-1,-1)
         | ___ -> self#failed "LITERAL expected" (-1,-1)

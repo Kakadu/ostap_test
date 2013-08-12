@@ -20,4 +20,6 @@ _build
 *.native
 
 perf.data*
+\#*\#
+*~
 

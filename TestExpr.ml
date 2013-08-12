@@ -76,9 +76,11 @@ let () = if options.with_ostap then begin
   print_endline "\n============================= Ostap parsing and printing...\n";
   let source  = read options.filename in
   printf "Input length: %d\n" (String.length source);
-  let doit memoize sort = (*
-    let lexer = new OstapLexerExpr.t source in *)
-    let lexer = new OstapLexerExpr.wrap_expr_lexer source in
+  let doit memoize sort =
+    let lexer =
+      new OstapLexerExpr.t source
+      (*else new OstapLexerExpr.wrap_expr_lexer source*)
+    in
     let () = Ref.replace OstapLexerExpr.profit_counter (fun _ -> 0) in
     let msg =
       sprintf "Ostap %s %s parsing"
@@ -97,8 +99,15 @@ let () = if options.with_ostap then begin
         Ostap.Reason.toString `All `Desc r |! print_endline;
         exit 1
   in
-  doit true `Good ;
-  doit true `Bad  ;
-  doit false `Good;
-  doit false `Bad
+
+  try
+    doit true `Bad  ;
+    doit true `Good ;
+    doit false `Good;
+    doit false `Bad
+  with Stack_overflow as exn ->
+    print_endline "Stack_overflow is catched!";
+    Printexc.print_backtrace stdout;
+    raise exn
+
 end
