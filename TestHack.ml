@@ -14,9 +14,9 @@ let yacc_output_file  =     "yacc.expr.out"
 
 let () =
   Gc.(
-    let c = get () in
+    let c = get () in (*
     c.minor_heap_size <- 536870912*2;
-    c.max_overhead <-      1000000;
+    c.max_overhead <-      1000000; *)
     set c
   )
 
@@ -32,41 +32,87 @@ let () =
 
 let () = printf "Using input file '%s'\n%!" options.filename
 
+let clear_caches () =
+  print_endline "clearing caches";
+  Sys.command "sync && sudo bash -c \"echo 3 > /proc/sys/vm/drop_caches\"" |! ignore
+
+
 (** Executing YACC printing *)
 let () = if options.with_yacc then begin
   print_endline "\n============================= YACC parsing and printing ...\n";
+  clear_caches ();
   print_endline ("using output file " ^ yacc_output_file);
   let ch = open_in options.filename in
-  let lexbuf = Lexing.from_channel ch in
+
   let () =
     try
-      let ans = (fun () -> ExprYacc.program LexerExpr.token lexbuf) |! eval_time "YACC  parsing" in
+      let ans = (fun () ->
+        let lexbuf = Lexing.from_channel ch in
+        ExprYacc.program LexerExpr.token lexbuf) |! eval_time "YACC  parsing" in
       with_file yacc_output_file (fun ch -> ans |! List.iter (fun s -> s |! Ostap.Pretty.toString |! fprintf ch "%s\n"))
     with End_of_file -> print_endline "Some error"
   in
   close_in ch
 end
 
+
 let hack_output_file = "hack.expr.out"
+(*
+open NoResultParser
 
 (** Executing combinator printing *)
-let () = if options.with_ostap then begin
+let run_comb () = if options.with_ostap then begin
     print_endline "\n============================= Hack parsing and printing...\n";
     let source  = read options.filename in
     printf "Input length: %d\n" (String.length source);
 
-    let do_parse, lexer_time =  HackParser.program source  in
-    let ans, parser_time    = eval_time_2 do_parse in
-    match ans with
-      | HackParser.Comb.Parsed (xs,_) ->
+    let do_parse, lexer_time = program source  in
+    let ((), parser_time)    = eval_time_2 do_parse in
+
+    if Comb.ans.Comb.parsed then begin
+      let u = Comb.ans.Comb.result in
+      let xs : Ostap.Pretty.printer list = u  |! Obj.magic  in
         with_file hack_output_file
           (fun ch -> xs |! List.map Ostap.Pretty.toString |! List.iter (fprintf ch "%s\n"));
         printf "output in %s\n"  hack_output_file;
         printf "action hack parsing tooks %f time (%f lexer + %f parsing)\n%!"
           (lexer_time +. parser_time) lexer_time parser_time;
         flush stdout
-      | HackParser.Comb.Failed     ->
+
+    end else begin
         printf "TT\n";
         exit 1
-
+    end
 end
+*)
+open HackParserLifting
+let run_comb () = if options.with_ostap then begin
+    print_endline "\n============================= Hack parsing and printing...\n";
+    let source  = read options.filename in
+    printf "Input length: %d\n" (String.length source);
+
+    let do_parse, lexer_time = program source  in
+    let (ans, parser_time)    = eval_time_2 do_parse in
+
+    match ans with
+      | Comb.Parsed(xs,_) ->
+        with_file hack_output_file
+          (fun ch -> xs |! List.map Ostap.Pretty.toString |! List.iter (fprintf ch "%s\n"));
+        printf "output in %s\n"  hack_output_file;
+        printf "action hack parsing tooks %f time (%f lexer + %f parsing)\n%!"
+          (lexer_time +. parser_time) lexer_time parser_time;
+        flush stdout
+      | Comb.Failed ->
+        printf "TT\n";
+        exit 1
+    end
+
+let () =(*
+  clear_caches ();
+  Gc.full_major ();
+  run_comb (); *)
+  clear_caches (); (*
+  Gc.full_major (); *)
+  run_comb ()
+
+
