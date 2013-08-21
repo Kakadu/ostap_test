@@ -14,9 +14,9 @@ let yacc_output_file  =     "yacc.expr.out"
 
 let () =
   Gc.(
-    let c = get () in
+    let c = get () in (*
     c.minor_heap_size <- 536870912*2;
-    c.max_overhead <-      1000000;
+    c.max_overhead <-      1000000; *)
     set c
   )
 
@@ -32,9 +32,15 @@ let () =
 
 let () = printf "Using input file '%s'\n%!" options.filename
 
+let clear_caches () =
+  print_endline "clearing caches";
+  Sys.command "sync && sudo bash -c \"echo 3 > /proc/sys/vm/drop_caches\"" |! ignore
+
+
 (** Executing YACC printing *)
 let () = if options.with_yacc then begin
   print_endline "\n============================= YACC parsing and printing ...\n";
+  clear_caches ();
   print_endline ("using output file " ^ yacc_output_file);
   let ch = open_in options.filename in
 
@@ -50,9 +56,9 @@ let () = if options.with_yacc then begin
 end
 
 
-let hack_output_file = "hack.expr.out"
-
-open HackParserLifting
+let hack_output_file = "recdesc.expr.out"
+(*
+open NoResultParser
 
 (** Executing combinator printing *)
 let run_comb () = if options.with_ostap then begin
@@ -61,30 +67,47 @@ let run_comb () = if options.with_ostap then begin
     printf "Input length: %d\n" (String.length source);
 
     let do_parse, lexer_time = program source  in
-    let ans, parser_time    = eval_time_2 do_parse in
-    match ans with
-      | Comb.Parsed (xs,_) ->
+    let ((), parser_time)    = eval_time_2 do_parse in
+
+    if Comb.ans.Comb.parsed then begin
+      let u = Comb.ans.Comb.result in
+      let xs : Ostap.Pretty.printer list = u  |! Obj.magic  in
         with_file hack_output_file
           (fun ch -> xs |! List.map Ostap.Pretty.toString |! List.iter (fprintf ch "%s\n"));
         printf "output in %s\n"  hack_output_file;
         printf "action hack parsing tooks %f time (%f lexer + %f parsing)\n%!"
           (lexer_time +. parser_time) lexer_time parser_time;
         flush stdout
-      | Comb.Failed     ->
+
+    end else begin
         printf "TT\n";
         exit 1
+    end
 end
+*)
+open RecDesc
+let run_comb () = if options.with_ostap then begin
+    print_endline "\n============================= Recursive Descent and printing...\n";
+    let source  = read options.filename in
+    printf "Input length: %d\n" (String.length source);
 
-let clear_caches () =
-  print_endline "clearing caches";
-  Sys.command "sync && sudo bash -c \"echo 3 > /proc/sys/vm/drop_caches\"" |! ignore
+    let do_parse, lexer_time = program source  in
+    let (ans, parser_time)    = eval_time_2 do_parse in
 
-let () =
+        with_file hack_output_file
+          (fun ch -> ans |! List.map Ostap.Pretty.toString |! List.iter (fprintf ch "%s\n"));
+        printf "output in %s\n"  hack_output_file;
+        printf "action hack parsing tooks %f time (%f lexer + %f parsing)\n%!"
+          (lexer_time +. parser_time) lexer_time parser_time;
+        flush stdout
+    end
+
+let () =(*
   clear_caches ();
   Gc.full_major ();
-  run_comb ();
-  clear_caches ();
-  Gc.full_major ();
+  run_comb (); *)
+  clear_caches (); (*
+  Gc.full_major (); *)
   run_comb ()
 
 

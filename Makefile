@@ -11,6 +11,10 @@ OUT=a.out
 
 .SUFFIXES: .cmx .cmi .ml .mly .mll .mli
 
+TARGETS=ExprYacc.cmx TestHack.native TestWithAst.native
+ob:
+		ocamlbuild -use-ocamlfind $(TARGETS)
+
 all: $(FILES0) with_lex $(FILES1)  Driver.cmx Driver2.cmx  TestExpr.cmx
 #		$(OCAMLC) $(OPTIONS) -linkpkg $(FILES0)  $(FILES1) $(FILES_YACC) Driver.cmx -o $(OUT)
 #		$(OCAMLC) $(OPTIONS) -linkpkg $(FILES0)  $(FILES1) $(FILES_YACC) Driver2.cmx -o test2
@@ -37,11 +41,9 @@ with_lex:
 		$(OCAMLC) -c $<
 
 clean:
-		rm -fr *~ *.s *.cm[oixa] $(OUT) _build Lexer.ml Parser.ml Parser.mli *.o HelloWorld.class LexerExpr.ml ExprYacc.ml ExprYacc.mli
+		rm -fr *~ *.s *.cm[oixa] $(OUT) _build Lexer.ml Parser.ml Parser.mli *.o HelloWorld.class LexerExpr.ml ExprYacc.ml ExprYacc.mli *.byte *.native
 
 j:
 		jasmin HelloWorld.j && java HelloWorld
 
-ob:
-		ocamlbuild -use-ocamlfind TestExpr.native TestExpr.byte TestHack.native
 

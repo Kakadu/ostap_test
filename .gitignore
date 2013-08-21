@@ -22,4 +22,5 @@ _build
 perf.data*
 \#*\#
 *~
+*.out
 
