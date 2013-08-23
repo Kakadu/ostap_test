@@ -15,8 +15,10 @@ type options = {
   mutable with_combOS : bool; (* my combinators andostap stream *)
   mutable with_comblexbuf : bool; (* my combinators andostap stream *)
   mutable with_recdescbuf : bool; (* recusive descent over ocamllex *)
+  mutable with_recdescsless : bool; (* recusive descent scannerless *)
   mutable with_recdescbuf_memoized : bool; (*  recusive descent over ocamllex with lexeme memoization *)
   mutable with_recdescbuf_memoized2: bool; (*  recusive descent over ocamllex with lexeme memoization and using it *)
+  mutable with_yacc_mylex: bool; (*  recusive descent over ocamllex with lexeme memoization and using it *)
 }
 (*
 let () =
@@ -30,32 +32,39 @@ let () =
 let options = {
   filename="expr2.e"; with_yacc=false;       with_ostap=false;      with_recdesc=false; with_comb=false;
   with_combOS=false;  with_comblexbuf=false; with_recdescbuf=false; with_recdescbuf_memoized=false;
-  with_recdescbuf_memoized2=false;
+  with_recdescbuf_memoized2=false; with_yacc_mylex=false;
+  with_recdescsless=false;
   print=false;
 }
 
 let yacc_output_file  =     "yacc.expr.out"
+let yacc_mylex_output_file  =     "yacc_mylex.expr.out"
 let hack_output_file  =     "comb.expr.out"
 let ostap_output_file  =    "ostap.expr.out"
 let recdesc_output_file =   "recdesc.expr.out"
 let combOS_output_file  =   "combOS.expr.out"
 let comblexbuf_output_file = "comblexbuf.expr.out"
 let recdescbuf_output_file = "recdescbuf.expr.out"
+let recdescsless_output_file = "recdescsless.expr.out"
 let recdescbuf_memoized_output_file = "recdescbuf.mem.expr.out"
 let recdescbuf_memoized2_output_file = "recdescbuf.mem2.expr.out"
 
 let () =
-  Arg.parse [ ("-f",       Arg.String (fun  s -> options.filename <- s), "input file name")
-            ; ("-print",   Arg.Unit   (fun () -> options.print    <- true), "print evaluated AST")
-            ; ("-yacc",    Arg.Unit   (fun () -> options.with_yacc<- true), "execute yacc/menhir parsing")
-            ; ("-comb",    Arg.Unit   (fun () -> options.with_comb       <- true), "execute combintor parsing")
-            ; ("-combOS",  Arg.Unit   (fun () -> options.with_combOS  <- true), "execute combintor parsing on ostap stream")
-            ; ("-recdesc", Arg.Unit   (fun () -> options.with_recdesc <- true), "execute resdesc parsing")
-            ; ("-ostap",   Arg.Unit   (fun () -> options.with_ostap     <- true), "execute ostap parsing")
+  Arg.parse [ ("-f",        Arg.String (fun  s -> options.filename <- s), "input file name")
+            ; ("-print",    Arg.Unit   (fun () -> options.print    <- true), "print evaluated AST")
+            ; ("-yacc",     Arg.Unit   (fun () -> options.with_yacc<- true), "execute yacc/menhir parsing")
+            ; ("-yaccmylex",Arg.Unit  (fun () -> options.with_yacc_mylex<- true),
+               "execute yacc/menhir parsing with my lexer")
+            ; ("-comb",     Arg.Unit   (fun () -> options.with_comb   <- true), "execute combintor parsing")
+            ; ("-combOS",   Arg.Unit   (fun () -> options.with_combOS <- true), "execute combintor parsing on ostap stream")
+            ; ("-recdesc",  Arg.Unit   (fun () -> options.with_recdesc <- true), "execute resdesc parsing")
+            ; ("-ostap",    Arg.Unit   (fun () -> options.with_ostap     <- true), "execute ostap parsing")
             ; ("-comblexbuf", Arg.Unit(fun () -> options.with_comblexbuf<- true),
                "execute combinators with lexbuf stream parsing")
             ; ("-recdescbuf", Arg.Unit(fun () -> options.with_recdescbuf<- true),
                "execute recursive descent over lexbuf")
+            ; ("-recdescsless", Arg.Unit(fun () -> options.with_recdescsless<- true),
+               "execute recursive descent scannnerless")
             ; ("-recdescbuf-mem", Arg.Unit(fun () -> options.with_recdescbuf_memoized <- true),
                "execute recursive descent over lexbuf with lexeme memoization")
             ; ("-recdescbuf-mem2", Arg.Unit(fun () -> options.with_recdescbuf_memoized2 <- true),
@@ -93,6 +102,32 @@ let run_lr () = if options.with_yacc then begin
     with End_of_file -> print_endline "Some error"
   in
   close_in ch
+end
+
+(** Executing YACC printing *)
+let run_yacc_mylex () = if options.with_yacc_mylex then begin
+  clear_caches ();
+  print_endline "============================= YACC over my lexer parsing and printing ...\n";
+  let source  = read options.filename in
+
+  let () =
+    try
+      let xs = (fun () ->
+        let lexbuf = MyLexerMut.lexbuf_from_string source |! Obj.magic in
+        let tokenizer = Obj.magic MyLexerMut.token in
+        ExprYaccAst.program tokenizer lexbuf) |! eval_time "YACC over my lexer parsing"
+      in
+      Gc.compact ();
+      if options.print then begin
+        print_endline ("using output file " ^ yacc_mylex_output_file);
+        let ps = (fun () -> xs |! List.map (fun x -> x |! Ast.print |! Ostap.Pretty.toString))
+                 |! eval_time "ast -> printer" in
+        with_file yacc_mylex_output_file
+          (fun ch -> ps |! List.iter (fprintf ch "%s\n"))
+      end
+    with End_of_file -> print_endline "Some error"
+  in
+  ()
 end
 
 open HackParserLiftingAst
@@ -210,6 +245,26 @@ let run_recdescbuf () = if options.with_recdescbuf then begin
     flush stdout
 end
 
+open RecDescAstScannerless
+let run_recdescsless () = if options.with_recdescsless then begin
+    clear_caches ();
+    print_endline "============================= Recursive Descent scannerless parsing and printing...\n";
+    let source  = read options.filename in
+    printf "Input length: %d\n" (String.length source);
+    printf "output in %s\n"  recdescsless_output_file;
+
+    let do_parse  = program source  in
+    let (ans, parser_time)    = eval_time_2 do_parse in
+    printf "action 'rec desc parsing scannerless' tooks %f time\n%!" parser_time;
+    if options.print then begin
+      Gc.compact ();
+      let ps = (fun () -> ans |! List.map (fun x -> x |! Ast.print |! Ostap.Pretty.toString))
+               |! eval_time "ast -> printer" in
+      with_file recdescsless_output_file (fun ch -> ps |! List.iter (fprintf ch "%s\n"));
+    end;
+    flush stdout
+end
+
 open RecDescAstOverLexbufMemoized
 let run_recdescbuf_memoized () = if options.with_recdescbuf_memoized then begin
     clear_caches ();
@@ -273,6 +328,7 @@ let run_ostap () = if options.with_ostap then begin
 
 let () =
   run_lr ();
+  run_yacc_mylex ();
   run_comb ();
   run_recdesc ();
   run_ostap ();
@@ -280,6 +336,7 @@ let () =
   run_comblexbuf ();
   run_recdescbuf ();
   run_recdescbuf_memoized ();
-  run_recdescbuf_memoized2 ()
+  run_recdescbuf_memoized2 ();
+  run_recdescsless ()
 
 
