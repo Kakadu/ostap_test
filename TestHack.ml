@@ -11,7 +11,7 @@ type options = {
 }
 let ostap_output_file =     "ostap.expr.out"
 let yacc_output_file  =     "yacc.expr.out"
-
+(*
 let () =
   Gc.(
     let c = get () in
@@ -19,7 +19,7 @@ let () =
     c.max_overhead <-      1000000;
     set c
   )
-
+*)
 let options = { filename="expr2.e"; with_yacc=false; with_ostap=true }
 
 let () =
@@ -86,5 +86,3 @@ let () =
   clear_caches ();
   Gc.full_major ();
   run_comb ()
-
-

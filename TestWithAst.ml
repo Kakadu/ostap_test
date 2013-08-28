@@ -12,6 +12,7 @@ type options = {
   mutable with_ostap  : bool;
   mutable with_recdesc: bool;
   mutable with_comb   : bool;
+  mutable with_comb_mylex : bool; (* my combinators over my lexer *)
   mutable with_combOS : bool; (* my combinators andostap stream *)
   mutable with_comblexbuf : bool; (* my combinators andostap stream *)
   mutable with_recdescbuf : bool; (* recusive descent over ocamllex *)
@@ -33,7 +34,7 @@ let options = {
   filename="expr2.e"; with_yacc=false;       with_ostap=false;      with_recdesc=false; with_comb=false;
   with_combOS=false;  with_comblexbuf=false; with_recdescbuf=false; with_recdescbuf_memoized=false;
   with_recdescbuf_memoized2=false; with_yacc_mylex=false;
-  with_recdescsless=false;
+  with_recdescsless=false; with_comb_mylex=false;
   print=false;
 }
 
@@ -56,6 +57,8 @@ let () =
             ; ("-yaccmylex",Arg.Unit  (fun () -> options.with_yacc_mylex<- true),
                "execute yacc/menhir parsing with my lexer")
             ; ("-comb",     Arg.Unit   (fun () -> options.with_comb   <- true), "execute combintor parsing")
+            ; ("-comb-mylex",Arg.Unit  (fun () -> options.with_comb_mylex <- true),
+               "execute combintor parsing over my lexer")
             ; ("-combOS",   Arg.Unit   (fun () -> options.with_combOS <- true), "execute combintor parsing on ostap stream")
             ; ("-recdesc",  Arg.Unit   (fun () -> options.with_recdesc <- true), "execute resdesc parsing")
             ; ("-ostap",    Arg.Unit   (fun () -> options.with_ostap     <- true), "execute ostap parsing")
@@ -143,19 +146,46 @@ let run_comb () = if options.with_comb then begin
     Gc.compact ();
     match ans with
       | Comb.Parsed(xs,_) ->
-        printf "action 'My combs' parsing tooks %f time (%f lexer + %f parsing)\n%!"
-          (lexer_time +. parser_time) lexer_time parser_time;
-        let ps = (fun () -> xs |! List.map (fun x -> x |! Ast.print |! Ostap.Pretty.toString))
-                |! eval_time "ast -> printer" in
-        with_file hack_output_file
-          (fun ch -> ps |! List.iter (fprintf ch "%s\n"));
-        printf "output in %s\n"  hack_output_file;
-        flush stdout
+          printf "action 'My combs' parsing tooks %f time (%f lexer + %f parsing)\n%!"
+            (lexer_time +. parser_time) lexer_time parser_time;
+          if options.print then begin
+            let ps = (fun () -> xs |! List.map (fun x -> x |! Ast.print |! Ostap.Pretty.toString))
+                     |! eval_time "ast -> printer" in
+            with_file hack_output_file
+              (fun ch -> ps |! List.iter (fprintf ch "%s\n"));
+            printf "output in %s\n"  hack_output_file
+          end;
+          flush stdout
       | Comb.Failed ->
         printf "TT\n";
         exit 1
     end
 
+open HackParserLiftingAstScannerless
+let run_comb_mylex () = if options.with_comb_mylex then begin
+    clear_caches ();
+    print_endline "============================= My comb-s with ocamllex stream parsing and printing...\n";
+    let source  = read options.filename in
+    printf "Input length: %d\n" (String.length source);
+
+    let do_parse = program source  in
+    let (ans, parser_time)    = eval_time_2 do_parse in
+    Gc.compact ();
+    match ans with
+      | ScannerlessLexerCore.Parsed(xs,_) ->
+          printf "action 'My combs over scannerless lexer' parsing tooks %f time\n%!" parser_time;
+          if options.print then begin
+            let ps = (fun () -> xs |! List.map (fun x -> x |! Ast.print |! Ostap.Pretty.toString))
+                     |! eval_time "ast -> printer" in
+            with_file hack_output_file
+              (fun ch -> ps |! List.iter (fprintf ch "%s\n"));
+            printf "output in %s\n"  hack_output_file
+          end;
+          flush stdout
+      | ScannerlessLexerCore.Failed ->
+        printf "TT\n";
+        exit 1
+    end
 
 open HackParserLiftingAstOL
 let run_combOS () = if options.with_comb then begin
@@ -330,6 +360,7 @@ let () =
   run_lr ();
   run_yacc_mylex ();
   run_comb ();
+  run_comb_mylex ();
   run_recdesc ();
   run_ostap ();
   run_combOS ();
@@ -338,5 +369,3 @@ let () =
   run_recdescbuf_memoized ();
   run_recdescbuf_memoized2 ();
   run_recdescsless ()
-
-
